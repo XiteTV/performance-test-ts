@@ -23,5 +23,9 @@
   },
   "scripts": {
     "start": "webpack"
+  },
+  "dependencies": {
+    "fp-ts": "^2.12.0",
+    "xite-reporting-sdk": "XiteTV/xite-reporting-sdk#7.0.1"
   }
 }
