@@ -1,7 +1,7 @@
-import {group, check, fail} from "k6";
+import {group, check} from "k6";
 import http, {RefinedParams, RefinedResponse} from "k6/http";
-import {Option, isSome, fromNullable, none, chain, some, match, map} from "fp-ts/Option";
-import {Channel} from "./util/utilities";
+import {Option, isSome, fromNullable, none, chain, some} from "fp-ts/Option";
+import {Channel, getPlatformConfig, runWithToken} from "./util/utilities";
 const queries = require("./util/queries");
 import {defaultgetResponseCheck, generateRandomDeviceID, defaultpostResponseCheck, getRandomChannel, validateSkipCheck} from "./util/utilities";
 import { pipe } from 'fp-ts/function'
@@ -11,16 +11,12 @@ import {Token} from "./domain/Auth";
 
 export function mixerSkip() {
 
-    const configReponse: RefinedResponse<'text'> = http.get(`https://${__ENV.CONFIG_URL}/config.json`);
-    defaultgetResponseCheck(configReponse);
-
-    const config: Config = JSON.parse(configReponse.body)
-
     let token: Option<Token> = none;
     let initResponse: Option<StateUpdateResponse> = none
     let channelDetails: Option<Channel> = none
     let videoId: Option<string | number> = none
 
+    const config: Config = getPlatformConfig();
     const deviceId: string = generateRandomDeviceID();
     const appPlatform: string = "x1";
     const appVersion: string = "5.0.71";
@@ -32,19 +28,6 @@ export function mixerSkip() {
         "accept-encoding": "gzip, deflate, br",
         "accept-language": "en",
     };
-
-    function runWithToken<R>(f: (t: string) => R): R | never {
-        return pipe(
-            token,
-            map(
-                (t: Token) => t.access_token
-            ),
-            match(
-                () => fail("No Auth token, unable to run test"),
-                f
-            )
-        )
-    }
 
     group("01_Client_Guest_Login", function() {
         let url = `https://${__ENV.BASE_URL}/iam/oauth2/token`;
@@ -63,6 +46,7 @@ export function mixerSkip() {
 
     group("02_Get_User_Token_Info", function() {
         runWithToken(
+            token,
             (t: string) => {
                 let url = `https://${__ENV.BASE_URL}/iam/oauth2/tokeninfo`;
                 let params: RefinedParams<'text'> = {
@@ -79,6 +63,7 @@ export function mixerSkip() {
 
     group("03_Init_Session", function() {
         runWithToken(
+            token,
             (t: string) => {
                 const response: RefinedResponse<'text'> = http.post(
                     `https://${__ENV.BASE_URL}/api/player/init`,
@@ -126,6 +111,7 @@ export function mixerSkip() {
 
     group("05_Start_Mixer_Player", function() {
         runWithToken(
+            token,
             (t: string) => {
                 const filters: Array<number> = [1745844053, 1080229685, 812932015]
                 const response: RefinedResponse<'text'> = http.post(
@@ -167,6 +153,7 @@ export function mixerSkip() {
     group("06_Skip_Video", function() {
 
         runWithToken(
+            token,
             (t: string) => {
                 const response: RefinedResponse<'text'> = http.post(
                     `https://${__ENV.BASE_URL}/api/player/next`,

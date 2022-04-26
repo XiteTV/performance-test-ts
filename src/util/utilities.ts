@@ -1,19 +1,22 @@
-import {check} from "k6";
-import {RefinedResponse} from "k6/http";
+import {check, fail} from "k6";
+import http, {RefinedResponse} from "k6/http";
 import {chain as flatMapOption, fromNullable as toOption, map, match, Option} from "fp-ts/Option";
 import {chain as flatMapArray, filter, map as mapArray} from "fp-ts/Array";
 import {pipe} from 'fp-ts/function'
 import {Predicate} from "fp-ts/Predicate";
 import {ChannelCategory, ChannelInfo, FilterCategory, FilterInfo, StateUpdateResponse} from "../domain/Player";
+import {Config} from "../domain/Config";
+import {Token} from "../domain/Auth";
+
+export interface Channel {
+    categoryname: string;
+    channelid: number;
+}
 
 export function getRandomIntInclusive(min: number, max: number): number {
     min = Math.ceil(min);
     max = Math.floor(max);
     return Math.floor(Math.random() * (max - min + 1) + min); //The maximum is inclusive and the minimum is inclusive
-}
-export interface Channel {
-    categoryname: string;
-    channelid: number;
 }
 
 function toArray<T>(value: T | undefined): Array<T> {
@@ -110,4 +113,22 @@ export function validateSkipCheck(response: RefinedResponse<'text'>, status: boo
     return check(response, {
         "Skip is Allowed": (r) => r.json("limitations.skip.isAllowed") == status,
 });
+}
+
+export function getPlatformConfig(): Config {
+    const configReponse: RefinedResponse<'text'> = http.get(`https://${__ENV.CONFIG_URL}/config.json`);
+    return JSON.parse(configReponse.body);
+}
+
+export function runWithToken<R>(token: Option<Token>, f: (t: string) => R): R | never {
+    return pipe(
+        token,
+        map(
+            (t: Token) => t.access_token
+        ),
+        match(
+            () => fail("No Auth token, unable to run test"),
+            f
+        )
+    )
 }
