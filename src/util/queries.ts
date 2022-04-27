@@ -57,7 +57,7 @@ module.exports = {
         ownerkey: string,
         deviceId: string,
         appPlatform: string,
-        videoId: string | number,
+        videoId: number | string,
         appVersion: string
     ) => {
         return `{"ownerKey":"${ownerkey}","deviceId":"${deviceId}","appPlatform":"${appPlatform}","feedback":"like","videoId":"${videoId}","appVersion":"${appVersion}"}`;

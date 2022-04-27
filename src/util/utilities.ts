@@ -1,12 +1,13 @@
 import {check, fail} from "k6";
 import http, {RefinedResponse} from "k6/http";
-import {chain as flatMapOption, fromNullable as toOption, map, match, Option} from "fp-ts/Option";
+import {chain as flatMapOption, fromNullable, fromNullable as toOption, map, match, Option} from "fp-ts/Option";
 import {chain as flatMapArray, filter, map as mapArray} from "fp-ts/Array";
 import {pipe} from 'fp-ts/function'
 import {Predicate} from "fp-ts/Predicate";
 import {ChannelCategory, ChannelInfo, FilterCategory, FilterInfo, StateUpdateResponse} from "../domain/Player";
 import {Config} from "../domain/Config";
 import {Token} from "../domain/Auth";
+import {boolean} from "fp-ts";
 
 export interface Channel {
     categoryname: string;
@@ -109,6 +110,12 @@ export function defaultpostResponseCheck(response: RefinedResponse<'text'>): boo
 });
 }
 
+export function checkResponseOk(response: RefinedResponse<'text'>, validStatus: number): boolean {
+    return check(response, {
+        "status is valid" : (r) => r.body != null && r.status === validStatus,
+    });
+}
+
 export function validateSkipCheck(response: RefinedResponse<'text'>, status: boolean): boolean {
     return check(response, {
         "Skip is Allowed": (r) => r.json("limitations.skip.isAllowed") == status,
@@ -131,4 +138,141 @@ export function runWithToken<R>(token: Option<Token>, f: (t: string) => R): R | 
             f
         )
     )
+}
+
+const defaultHeaders = {
+    "accept": "*/*",
+    "accept-encoding": "gzip, deflate, br",
+    "accept-language": "en",
+};
+
+export function post<T>(
+    route: string
+  , payload: string
+  , token?: string
+  , headers?: object
+  , validStatusCode?: number
+  , prechecks: Array<(r: RefinedResponse<'text'>) => boolean> = []): T {
+
+    const params = pipe(
+        fromNullable(token),
+        match(
+            () => {
+                return {
+                    headers: {
+                        ...defaultHeaders,
+                        ...headers
+                    },
+                }
+            },
+            (t: string) => {
+                return {
+                    headers: {
+                        ...defaultHeaders,
+                        authorization: "Bearer " + t,
+                        ...headers
+                    },
+                }
+            }
+        )
+    )
+
+    const response: RefinedResponse<'text'> = http.post(
+        `https://${__ENV.BASE_URL}${route}`,
+        payload,
+        params
+    );
+
+    pipe(
+        fromNullable(validStatusCode),
+        match(
+            () => console.log("Not validating status code"),
+            (code: number) => checkResponseOk(response, code)
+        )
+    )
+
+    pipe(
+        prechecks,
+        mapArray(
+            (predicate: (r: RefinedResponse<'text'>) => boolean) => predicate(response)
+        )
+    )
+
+    return JSON.parse(response.body);
+}
+
+export function postForget(route: string, payload: string, token?: string, headers?: object, validStatusCode?: number): void {
+    const params = pipe(
+        fromNullable(token),
+        match(
+            () => {
+                return {
+                    headers: {
+                        ...defaultHeaders,
+                        ...headers
+                    },
+                }
+            },
+            (t: string) => {
+                return {
+                    headers: {
+                        ...defaultHeaders,
+                        authorization: "Bearer " + t,
+                        ...headers
+                    },
+                }
+            }
+        )
+    )
+
+    const response: RefinedResponse<'text'> = http.post(
+        `https://${__ENV.BASE_URL}${route}`,
+        payload,
+        params
+    );
+
+    pipe(
+        fromNullable(validStatusCode),
+        match(
+            () => console.log("Not validating status code"),
+            (code: number) => checkResponseOk(response, code)
+        )
+    )
+}
+
+export function get<T>(route: string, token?: string, validStatusCode?: number): T {
+    const url = `https://${__ENV.BASE_URL}${route}`;
+
+    const params = pipe(
+        fromNullable(token),
+        match(
+            () => {
+                return {
+                    headers: {
+                        ...defaultHeaders
+                    }
+                }
+            },
+            (t: string) => {
+                return {
+                    headers: {
+                        ...defaultHeaders,
+                        authorization: "Bearer " + t,
+                    }
+                }
+            }
+        )
+    )
+
+    const response: RefinedResponse<'text'> = http.get(url, params);
+
+    pipe(
+        fromNullable(validStatusCode),
+        match(
+            () => console.log("Not validating status code"),
+            (code: number) => checkResponseOk(response, code)
+        )
+    )
+
+    return JSON.parse(response.body);
 }

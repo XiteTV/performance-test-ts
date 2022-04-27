@@ -1,17 +1,17 @@
 import {group, check} from "k6";
-import http, {RefinedParams, RefinedResponse} from "k6/http";
+import http, {RefinedResponse} from "k6/http";
 import {Option, isSome, fromNullable, none, chain, some} from "fp-ts/Option";
-import {Channel, getPlatformConfig, runWithToken} from "./util/utilities";
+import {Channel, get, getPlatformConfig, post, runWithToken} from "./util/utilities";
 const queries = require("./util/queries");
-import {defaultgetResponseCheck, generateRandomDeviceID, defaultpostResponseCheck, getRandomChannel, validateSkipCheck} from "./util/utilities";
+import {defaultgetResponseCheck, generateRandomDeviceID, getRandomChannel, validateSkipCheck} from "./util/utilities";
 import { pipe } from 'fp-ts/function'
 import {StateUpdateResponse} from "./domain/Player";
 import {Config} from "./domain/Config";
-import {Token} from "./domain/Auth";
+import {Token, TokenInfo} from "./domain/Auth";
 
 export function mixerSkip() {
 
-    let token: Option<Token> = none;
+    let maybeToken: Option<Token> = none;
     let initResponse: Option<StateUpdateResponse> = none
     let channelDetails: Option<Channel> = none
     let videoId: Option<string | number> = none
@@ -30,59 +30,46 @@ export function mixerSkip() {
     };
 
     group("01_Client_Guest_Login", function() {
-        let url = `https://${__ENV.BASE_URL}/iam/oauth2/token`;
-        let payload = queries.getClientGuestPayload(
-            config.apiConfig.clientId,
-            clientSecret,
-            deviceId
-        );
-        let params: RefinedParams<'text'> = {
-            headers: defaultHeaders
-        };
-        const response: RefinedResponse<'text'> = http.post(url, payload, params);
-        defaultpostResponseCheck(response);
-        token = some(JSON.parse(response.body));
+        maybeToken = some(post<Token>(
+            "/iam/oauth2/token",
+            queries.getClientGuestPayload(
+                config.apiConfig.clientId,
+                clientSecret,
+                deviceId
+            ),
+            undefined,
+            undefined,
+            201
+        ));
     });
 
     group("02_Get_User_Token_Info", function() {
         runWithToken(
-            token,
-            (t: string) => {
-                let url = `https://${__ENV.BASE_URL}/iam/oauth2/tokeninfo`;
-                let params: RefinedParams<'text'> = {
-                    headers: {
-                        ...defaultHeaders,
-                        authorization: "Bearer " + t,
-                    },
-                };
-                const response: RefinedResponse<'text'> = http.get(url, params);
-                defaultgetResponseCheck(response);
+            maybeToken,
+            (token: string) => {
+                return get<TokenInfo>("/iam/oauth2/tokeninfo", token, 200)
             }
         )
     });
 
     group("03_Init_Session", function() {
         runWithToken(
-            token,
-            (t: string) => {
-                const response: RefinedResponse<'text'> = http.post(
-                    `https://${__ENV.BASE_URL}/api/player/init`,
+            maybeToken,
+            (token: string) => {
+                initResponse = some(post<StateUpdateResponse>(
+                    "/api/player/init",
                     queries.getInitSessionPayload(
                         config.apiConfig.ownerKey,
                         deviceId,
                         appPlatform,
                         appVersion
                     ),
+                    token,
                     {
-                        headers: {
-                            ...defaultHeaders,
-                            authorization: "Bearer " + t,
-                            'content-type': "application/json",
-                        },
-                    }
-                );
-                initResponse = some(JSON.parse(response.body))
-                defaultgetResponseCheck(response);
+                        'content-type': "application/json"
+                    },
+                    200
+                ))
             }
         )
     });
@@ -111,11 +98,11 @@ export function mixerSkip() {
 
     group("05_Start_Mixer_Player", function() {
         runWithToken(
-            token,
-            (t: string) => {
+            maybeToken,
+            (token: string) => {
                 const filters: Array<number> = [1745844053, 1080229685, 812932015]
-                const response: RefinedResponse<'text'> = http.post(
-                    `https://${__ENV.BASE_URL}/api/player/start`,
+                const startResponse: StateUpdateResponse = post<StateUpdateResponse>(
+                    "/api/player/start",
                     queries.getMixerPlayerStartPayload(
                         config.apiConfig.ownerKey,
                         deviceId,
@@ -124,16 +111,12 @@ export function mixerSkip() {
                         playerType,
                         filters
                     ),
+                    token,
                     {
-                        headers: {
-                            ...defaultHeaders,
-                            authorization: "Bearer " + t,
-                            'content-type': "application/json",
-                        }
-                    }
-                );
-                defaultgetResponseCheck(response);
-                const startResponse: StateUpdateResponse = JSON.parse(response.body)
+                        'content-type': "application/json"
+                    },
+                    200
+                )
                 videoId = fromNullable(startResponse.currentVideo?.id)
                 check(
                     videoId,
@@ -151,10 +134,9 @@ export function mixerSkip() {
     });
 
     group("06_Skip_Video", function() {
-
         runWithToken(
-            token,
-            (t: string) => {
+            maybeToken,
+            (token: string) => {
                 const response: RefinedResponse<'text'> = http.post(
                     `https://${__ENV.BASE_URL}/api/player/next`,
                     queries.getSkipVideoPayload(
@@ -167,7 +149,7 @@ export function mixerSkip() {
                     {
                         headers: {
                             ...defaultHeaders,
-                            authorization: "Bearer " + t,
+                            authorization: "Bearer " + token,
                             'content-type': "application/json",
                         },
                     }
