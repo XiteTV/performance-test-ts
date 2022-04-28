@@ -1,9 +1,9 @@
 import {group, check} from "k6";
-import http, {RefinedResponse} from "k6/http";
+import {RefinedResponse} from "k6/http";
 import {Option, isSome, fromNullable, none, chain, some} from "fp-ts/Option";
 import {Channel, get, getPlatformConfig, post, runWithToken} from "./util/utilities";
 const queries = require("./util/queries");
-import {defaultgetResponseCheck, generateRandomDeviceID, getRandomChannel, validateSkipCheck} from "./util/utilities";
+import {generateRandomDeviceID, getRandomChannel, validateSkipCheck} from "./util/utilities";
 import { pipe } from 'fp-ts/function'
 import {StateUpdateResponse} from "./domain/Player";
 import {Config} from "./domain/Config";
@@ -23,23 +23,17 @@ export function mixerSkip() {
     const playerType: string = "mixer";
     const clientSecret: string = "hyperion";
 
-    const defaultHeaders = {
-        "accept": "*/*",
-        "accept-encoding": "gzip, deflate, br",
-        "accept-language": "en",
-    };
-
     group("01_Client_Guest_Login", function() {
         maybeToken = some(post<Token>(
-            "/iam/oauth2/token",
-            queries.getClientGuestPayload(
-                config.apiConfig.clientId,
-                clientSecret,
-                deviceId
-            ),
-            undefined,
-            undefined,
-            201
+            {
+                route: "/iam/oauth2/token",
+                payload: queries.getClientGuestPayload(
+                    config.apiConfig.clientId,
+                    clientSecret,
+                    deviceId
+                ),
+                validStatusCode: 201
+            }
         ));
     });
 
@@ -57,18 +51,20 @@ export function mixerSkip() {
             maybeToken,
             (token: string) => {
                 initResponse = some(post<StateUpdateResponse>(
-                    "/api/player/init",
-                    queries.getInitSessionPayload(
-                        config.apiConfig.ownerKey,
-                        deviceId,
-                        appPlatform,
-                        appVersion
-                    ),
-                    token,
                     {
-                        'content-type': "application/json"
-                    },
-                    200
+                        route: "/api/player/init",
+                        payload: queries.getInitSessionPayload(
+                            config.apiConfig.ownerKey,
+                            deviceId,
+                            appPlatform,
+                            appVersion
+                        ),
+                        token: token,
+                        headers: {
+                            'content-type': "application/json"
+                        },
+                        validStatusCode: 200
+                }
                 ))
             }
         )
@@ -102,20 +98,22 @@ export function mixerSkip() {
             (token: string) => {
                 const filters: Array<number> = [1745844053, 1080229685, 812932015]
                 const startResponse: StateUpdateResponse = post<StateUpdateResponse>(
-                    "/api/player/start",
-                    queries.getMixerPlayerStartPayload(
-                        config.apiConfig.ownerKey,
-                        deviceId,
-                        appPlatform,
-                        appVersion,
-                        playerType,
-                        filters
-                    ),
-                    token,
                     {
-                        'content-type': "application/json"
-                    },
-                    200
+                        route: "/api/player/start",
+                        payload: queries.getMixerPlayerStartPayload(
+                            config.apiConfig.ownerKey,
+                            deviceId,
+                            appPlatform,
+                            appVersion,
+                            playerType,
+                            filters
+                        ),
+                        token: token,
+                        headers: {
+                            'content-type': "application/json"
+                        },
+                        validStatusCode: 200
+                    }
                 )
                 videoId = fromNullable(startResponse.currentVideo?.id)
                 check(
@@ -137,25 +135,28 @@ export function mixerSkip() {
         runWithToken(
             maybeToken,
             (token: string) => {
-                const response: RefinedResponse<'text'> = http.post(
-                    `https://${__ENV.BASE_URL}/api/player/next`,
-                    queries.getSkipVideoPayload(
-                        config.apiConfig.ownerKey,
-                        deviceId,
-                        appPlatform,
-                        appVersion,
-                        "skip"
-                    ),
+                const validateSkip = (res: RefinedResponse<'text'>) => {
+                    return validateSkipCheck(res, true);
+                }
+
+                post<StateUpdateResponse>(
                     {
+                        route: "/api/player/next",
+                        payload: queries.getSkipVideoPayload(
+                            config.apiConfig.ownerKey,
+                            deviceId,
+                            appPlatform,
+                            appVersion,
+                            "skip"
+                        ),
+                        token: token,
                         headers: {
-                            ...defaultHeaders,
-                            authorization: "Bearer " + token,
-                            'content-type': "application/json",
+                            'content-type': "application/json"
                         },
+                        validStatusCode: 200,
+                        prechecks: Array.of(validateSkip)
                     }
-                );
-                defaultgetResponseCheck(response);
-                validateSkipCheck(response, true);
+                )
             }
         )
     });

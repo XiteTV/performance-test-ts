@@ -1,13 +1,12 @@
 import {check, fail} from "k6";
 import http, {RefinedResponse} from "k6/http";
-import {chain as flatMapOption, fromNullable, fromNullable as toOption, map, match, Option} from "fp-ts/Option";
+import {chain as flatMapOption, fromNullable, fromNullable as toOption, map as mapOption, match, Option} from "fp-ts/Option";
 import {chain as flatMapArray, filter, map as mapArray} from "fp-ts/Array";
 import {pipe} from 'fp-ts/function'
 import {Predicate} from "fp-ts/Predicate";
 import {ChannelCategory, ChannelInfo, FilterCategory, FilterInfo, StateUpdateResponse} from "../domain/Player";
 import {Config} from "../domain/Config";
 import {Token} from "../domain/Auth";
-import {boolean} from "fp-ts";
 
 export interface Channel {
     categoryname: string;
@@ -43,7 +42,7 @@ export function getRandomChannel(response: StateUpdateResponse): Option<Channel>
 
                         return pipe(
                             toOption(category.channels[channel_index]),
-                            map( (channel: ChannelInfo) => {
+                            mapOption( (channel: ChannelInfo) => {
                                     return {
                                         categoryname: category.name,
                                         channelid: channel.id,
@@ -130,7 +129,7 @@ export function getPlatformConfig(): Config {
 export function runWithToken<R>(token: Option<Token>, f: (t: string) => R): R | never {
     return pipe(
         token,
-        map(
+        mapOption(
             (t: Token) => t.access_token
         ),
         match(
@@ -147,21 +146,23 @@ const defaultHeaders = {
 };
 
 export function post<T>(
-    route: string
-  , payload: string
-  , token?: string
-  , headers?: object
-  , validStatusCode?: number
-  , prechecks: Array<(r: RefinedResponse<'text'>) => boolean> = []): T {
-
+    args: {
+          route: string
+        , payload: string
+        , token?: string
+        , headers?: object
+        , validStatusCode?: number
+        , prechecks?: Array<(r: RefinedResponse<'text'>) => boolean>
+    }
+): T {
     const params = pipe(
-        fromNullable(token),
+        fromNullable(args.token),
         match(
             () => {
                 return {
                     headers: {
                         ...defaultHeaders,
-                        ...headers
+                        ...args.headers
                     },
                 }
             },
@@ -170,7 +171,7 @@ export function post<T>(
                     headers: {
                         ...defaultHeaders,
                         authorization: "Bearer " + t,
-                        ...headers
+                        ...args.headers
                     },
                 }
             }
@@ -178,13 +179,13 @@ export function post<T>(
     )
 
     const response: RefinedResponse<'text'> = http.post(
-        `https://${__ENV.BASE_URL}${route}`,
-        payload,
+        `https://${__ENV.BASE_URL}${args.route}`,
+        args.payload,
         params
     );
 
     pipe(
-        fromNullable(validStatusCode),
+        fromNullable(args.validStatusCode),
         match(
             () => console.log("Not validating status code"),
             (code: number) => checkResponseOk(response, code)
@@ -192,9 +193,17 @@ export function post<T>(
     )
 
     pipe(
-        prechecks,
-        mapArray(
-            (predicate: (r: RefinedResponse<'text'>) => boolean) => predicate(response)
+        fromNullable(args.prechecks),
+        match(
+            () => console.log("No prechecks to run"),
+            (arr: Array<(r: RefinedResponse<'text'>) => boolean>) => {
+                pipe(
+                    arr,
+                    mapArray(
+                        (predicate: (r: RefinedResponse<'text'>) => boolean) => predicate(response)
+                    )
+                )
+            }
         )
     )
 

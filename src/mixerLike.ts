@@ -28,15 +28,15 @@ export function mixerLike() {
     group("01_Client_Guest_Login", function() {
 
         maybeToken = some(post<Token>(
-            "/iam/oauth2/token",
-            queries.getClientGuestPayload(
-                config.apiConfig.clientId,
-                clientSecret,
-                deviceId
-            ),
-            undefined,
-            undefined,
-            201
+            {
+                route: "/iam/oauth2/token",
+                payload: queries.getClientGuestPayload(
+                    config.apiConfig.clientId,
+                    clientSecret,
+                    deviceId
+                ),
+                validStatusCode: 201
+            }
         ));
     });
 
@@ -54,18 +54,20 @@ export function mixerLike() {
             maybeToken,
             (token: string) => {
                 const init: StateUpdateResponse = post<StateUpdateResponse>(
-                    "/api/player/init",
-                    queries.getInitSessionPayload(
-                        config.apiConfig.ownerKey,
-                        deviceId,
-                        appPlatform,
-                        appVersion
-                    ),
-                    token,
                     {
-                        "content-type": "application/json"
-                    },
-                    200
+                        route: "/api/player/init",
+                        payload: queries.getInitSessionPayload(
+                            config.apiConfig.ownerKey,
+                            deviceId,
+                            appPlatform,
+                            appVersion
+                        ),
+                        token: token,
+                        headers: {
+                            "content-type": "application/json"
+                        },
+                        validStatusCode: 200
+                    }
                 )
                 filters = getRandomMixerFilters(init);
             }
@@ -77,20 +79,22 @@ export function mixerLike() {
             maybeToken,
             (token: string) => {
                 const start: StateUpdateResponse = post<StateUpdateResponse>(
-                    "/api/player/start",
-                    queries.getMixerPlayerStartPayload(
-                        config.apiConfig.ownerKey,
-                        deviceId,
-                        appPlatform,
-                        appVersion,
-                        playerType,
-                        filters
-                    ),
-                    token,
                     {
-                        "content-type": "application/json"
-                    },
-                    200
+                        route: "/api/player/start",
+                        payload: queries.getMixerPlayerStartPayload(
+                            config.apiConfig.ownerKey,
+                            deviceId,
+                            appPlatform,
+                            appVersion,
+                            playerType,
+                            filters
+                        ),
+                        token: token,
+                        headers: {
+                            "content-type": "application/json"
+                        },
+                        validStatusCode: 200
+                    }
                 )
                 videoId = fromNullable(start.currentVideo?.id);
             }
