@@ -1,7 +1,7 @@
 import {group, check, fail} from "k6";
 import {RefinedResponse} from "k6/http";
 import {Option, isSome, fromNullable, none, chain, match} from "fp-ts/Option";
-import {Channel, get, getPlatformConfig, post, runWithToken} from "./util/utilities";
+import {ChannelDetails, get, getPlatformConfig, post, runWithToken} from "./util/utilities";
 const queries = require("./util/queries");
 import {generateRandomDeviceID, getRandomChannel, validateSkipCheck} from "./util/utilities";
 import { pipe } from 'fp-ts/function'
@@ -13,7 +13,7 @@ export function mixerSkip() {
 
     let maybeToken: Option<Token> = none;
     let initResponse: Option<StateUpdateResponse> = none
-    let channelDetails: Option<Channel> = none
+    let channelDetails: Option<ChannelDetails> = none
     let videoId: Option<string | number> = none
 
     const config: Config = getPlatformConfig();
@@ -82,7 +82,7 @@ export function mixerSkip() {
         check(
             channelDetails,
             {
-                "Channel details are returned": (details: Option<Channel>) => {
+                "Channel details are returned": (details: Option<ChannelDetails>) => {
                     return pipe(
                         details,
                         isSome

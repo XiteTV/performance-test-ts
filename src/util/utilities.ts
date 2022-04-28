@@ -1,5 +1,5 @@
 import {check, fail} from "k6";
-import http, {RefinedResponse} from "k6/http";
+import http, {RefinedResponse, StructuredRequestBody} from "k6/http";
 import {
     chain as flatMapOption, fromEither,
     fromNullable,
@@ -16,7 +16,7 @@ import {Config} from "../domain/Config";
 import {Token} from "../domain/Auth";
 import {tryCatch} from 'fp-ts/Either'
 
-export interface Channel {
+export interface ChannelDetails {
     categoryname: string;
     channelid: number;
 }
@@ -33,7 +33,7 @@ function toArray<T>(value: T | undefined): Array<T> {
     } else return Array.of();
 }
 
-export function getRandomChannel(response: StateUpdateResponse): Option<Channel> {
+export function getRandomChannel(response: StateUpdateResponse): Option<ChannelDetails> {
     let categories: Option<Array<ChannelCategory>> = toOption(response.channelCategories)
 
     return pipe(
@@ -105,18 +105,6 @@ export function generateRandomDeviceID(): string {
 });
 }
 
-export function defaultgetResponseCheck(response: RefinedResponse<'text'>): boolean {
-    return check(response, {
-        "status is 200": (r) => r.status === 200 && r.body != null,
-    });
-}
-
-export function defaultpostResponseCheck(response: RefinedResponse<'text'>): boolean {
-    return check(response, {
-        "status is 201": (r) => r.body != null && r.status === 201,
-});
-}
-
 export function checkResponseOk(response: RefinedResponse<'text'>, validStatus: number): boolean {
     return check(response, {
         "status is valid" : (r) => r.body != null && r.status === validStatus,
@@ -156,7 +144,7 @@ const defaultHeaders = {
 export function post<T>(
     args: {
           route: string
-        , payload: string
+        , payload: string | StructuredRequestBody
         , token?: string
         , headers?: object
         , validStatusCode?: number
@@ -219,7 +207,7 @@ export function post<T>(
     return fromEither(
         tryCatch(
             () => JSON.parse(response.body),
-            (e) => console.error("Error on parsing response", e)
+            (e) => console.error("Error on parsing response", e, response.body)
         )
     );
 }
