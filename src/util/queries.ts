@@ -84,3 +84,37 @@ export function getSearchPlayerStartPayload(
 ) {
     return `{"ownerKey":"${ownerkey}","deviceId":"${deviceId}","appPlatform":"${appPlatform}","appVersion":"${appVersion}","playerType":"${playerType}","videoIndex":${videoIndex},"platform":"${platform}"}`;
 }
+
+export function getCloseSessionPayload(
+    ownerKey: string,
+    deviceId: string,
+    platform: string,
+    appVersion: string
+) {
+    return `{ "ownerKey": "${ownerKey}", "deviceId": "${deviceId}", "appPlatform": "${platform}", "appVersion": "${appVersion}"}`
+}
+
+export function PMTExitv5(
+    platform: string,
+    ownerKey: string,
+    timestampMillis: number,
+    id: string,
+    deviceId: string
+) {
+    return `{
+     "clientPlatform": "${platform}", 
+     "clientOwnerKey": "${ownerKey}", 
+     "category": "user_action",
+     "clientPlatform": "Ziggo",
+     "message": "PMT exit",
+     "partitionDate": "2020-06",
+     "timestamp": ${timestampMillis},
+     "clientVersion": "5.3.84",
+     "clientDeviceId": "${deviceId}",
+     "clientDeviceSoftwareVersion": "unknown",
+     "clientOwnerKey": "ziggo-nl",
+     "correlationId": "",
+     "id": "${id}",
+     "customSessionTime": 7290
+     }`
+}

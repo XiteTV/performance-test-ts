@@ -1,100 +1,41 @@
 import { group } from "k6";
 import { InitConfigParams, InitReportingParams } from 'xite-reporting-sdk/dist/types/types';
 import * as reportingSdk from 'xite-reporting-sdk';
-import { accountReport, adBeaconReport, AccountMessage }  from 'xite-reporting-sdk';
+import {accountReport, adBeaconReport, AccountMessage} from 'xite-reporting-sdk';
 import * as reportingService from 'xite-reporting-sdk';
 import {AdBeaconsMessage, AccountRole} from "xite-reporting-sdk";
 
-class InitConf implements InitConfigParams {
-    batchSize: number;
-    batchTimeout: number;
-
-    reportingUrl: string;
-
-    constructor(batchSize: number, batchTimeout: number, reportingUrl: string ) {
-        this.batchSize = batchSize
-        this.batchTimeout = batchTimeout
-        this.reportingUrl = reportingUrl
-    }
-
-    headers(): { [p: string]: string | number } {
-        return {};
-    }
-}
-
-class InitReport implements InitReportingParams {
-    appVersion: string;
-    buildVersion: string;
-    deviceId: string;
-    deviceModel: string;
-    deviceModelName: string;
-    deviceName: string;
-    deviceResolution: string;
-    deviceSoftwareVersion: string;
-    experimentGroup: string | undefined;
-    experimentId: string | undefined;
-    launchId: number;
-    ownerKey: string;
-    platform: string;
-
-    constructor(
-          appVersion: string
-        , buildVersion: string
-        , deviceId: string
-        , deviceModel: string
-        , deviceModelName: string
-        , deviceName: string
-        , deviceResolution: string
-        , deviceSoftwareVersion: string
-        , experimentGroup: string | undefined
-        , experimentId: string | undefined
-        , launchId: number
-        , ownerKey: string
-        , platform: string) {
-        this.appVersion = appVersion
-        this.buildVersion = buildVersion
-        this.deviceId = deviceId
-        this.deviceModel = deviceModel
-        this.deviceModelName = deviceModelName
-        this.deviceName = deviceName
-        this.deviceResolution = deviceResolution
-        this.deviceSoftwareVersion = deviceSoftwareVersion
-        this.experimentGroup = experimentGroup
-        this.experimentId = experimentId
-        this.launchId = launchId
-        this.ownerKey = ownerKey
-        this.platform = platform
-    }
-}
-
 export function setup() {
-    const initConfigParams = new InitConf(
-        0,
-        0,
-        ""
-    );
+    const initConfigParams: InitConfigParams = {
+        batchSize: 0,
+        batchTimeout: 0,
+        reportingUrl: "",
+        headers: () => {
+            return {}
+        }
+    }
 
-    const initReportingParams = new InitReport(
-        "5.0.0",
-        "0.1",
-        "device-1",
-        "Samsung",
-        "SamsungTV Plus",
-        "SamsungTV Plus",
-        "1024x1000",
-        "0.1.2",
-        undefined,
-        undefined,
-        5,
-        "comcast-us",
-        "xite"
-    );
+    const initReportingParams: InitReportingParams = {
+        appVersion: "5.0.0",
+        deviceSoftwareVersion: "0.1",
+        deviceId: "device-1",
+        deviceName: "Samsung",
+        deviceModel: "SamsungTV Plus",
+        deviceModelName: "SamsungTV Plus",
+        deviceResolution: "1024x1000",
+        buildVersion: "0.1.2",
+        launchId: 5,
+        ownerKey: "comcast-us",
+        platform: "xite",
+        experimentGroup: undefined,
+        experimentId: undefined
+    };
     reportingSdk.init(initConfigParams, initReportingParams);
 }
 
 export default function() {
-    function handleProfileChange() {
-        accountReport.reportAccountAction<accountReport.ChangeProfileType>(AccountMessage.changeProfile, {
+    function handleProfileChange(): Promise<void> {
+        return accountReport.reportAccountAction<accountReport.ChangeProfileType>(AccountMessage.changeProfile, {
             isSuccessful: true,
             role: AccountRole.guest
         });
