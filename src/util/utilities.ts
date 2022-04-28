@@ -1,12 +1,20 @@
 import {check, fail} from "k6";
 import http, {RefinedResponse} from "k6/http";
-import {chain as flatMapOption, fromNullable, fromNullable as toOption, map as mapOption, match, Option} from "fp-ts/Option";
+import {
+    chain as flatMapOption, fromEither,
+    fromNullable,
+    fromNullable as toOption,
+    map as mapOption,
+    match,
+    Option
+} from "fp-ts/Option";
 import {chain as flatMapArray, filter, map as mapArray} from "fp-ts/Array";
 import {pipe} from 'fp-ts/function'
 import {Predicate} from "fp-ts/Predicate";
 import {ChannelCategory, ChannelInfo, FilterCategory, FilterInfo, StateUpdateResponse} from "../domain/Player";
 import {Config} from "../domain/Config";
 import {Token} from "../domain/Auth";
+import {tryCatch} from 'fp-ts/Either'
 
 export interface Channel {
     categoryname: string;
@@ -154,7 +162,7 @@ export function post<T>(
         , validStatusCode?: number
         , prechecks?: Array<(r: RefinedResponse<'text'>) => boolean>
     }
-): T {
+): Option<T> {
     const params = pipe(
         fromNullable(args.token),
         match(
@@ -207,46 +215,13 @@ export function post<T>(
         )
     )
 
-    return JSON.parse(response.body);
-}
 
-export function postForget(route: string, payload: string, token?: string, headers?: object, validStatusCode?: number): void {
-    const params = pipe(
-        fromNullable(token),
-        match(
-            () => {
-                return {
-                    headers: {
-                        ...defaultHeaders,
-                        ...headers
-                    },
-                }
-            },
-            (t: string) => {
-                return {
-                    headers: {
-                        ...defaultHeaders,
-                        authorization: "Bearer " + t,
-                        ...headers
-                    },
-                }
-            }
+    return fromEither(
+        tryCatch(
+            () => JSON.parse(response.body),
+            (e) => console.error("Error on parsing response", e)
         )
-    )
-
-    const response: RefinedResponse<'text'> = http.post(
-        `https://${__ENV.BASE_URL}${route}`,
-        payload,
-        params
     );
-
-    pipe(
-        fromNullable(validStatusCode),
-        match(
-            () => console.log("Not validating status code"),
-            (code: number) => checkResponseOk(response, code)
-        )
-    )
 }
 
 export function get<T>(route: string, token?: string, validStatusCode?: number): T {

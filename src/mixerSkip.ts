@@ -1,6 +1,6 @@
-import {group, check} from "k6";
+import {group, check, fail} from "k6";
 import {RefinedResponse} from "k6/http";
-import {Option, isSome, fromNullable, none, chain, some} from "fp-ts/Option";
+import {Option, isSome, fromNullable, none, chain, match} from "fp-ts/Option";
 import {Channel, get, getPlatformConfig, post, runWithToken} from "./util/utilities";
 const queries = require("./util/queries");
 import {generateRandomDeviceID, getRandomChannel, validateSkipCheck} from "./util/utilities";
@@ -24,7 +24,7 @@ export function mixerSkip() {
     const clientSecret: string = "hyperion";
 
     group("01_Client_Guest_Login", function() {
-        maybeToken = some(post<Token>(
+        maybeToken = post<Token>(
             {
                 route: "/iam/oauth2/token",
                 payload: queries.getClientGuestPayload(
@@ -34,7 +34,7 @@ export function mixerSkip() {
                 ),
                 validStatusCode: 201
             }
-        ));
+        );
     });
 
     group("02_Get_User_Token_Info", function() {
@@ -50,7 +50,7 @@ export function mixerSkip() {
         runWithToken(
             maybeToken,
             (token: string) => {
-                initResponse = some(post<StateUpdateResponse>(
+                initResponse = post<StateUpdateResponse>(
                     {
                         route: "/api/player/init",
                         payload: queries.getInitSessionPayload(
@@ -65,7 +65,7 @@ export function mixerSkip() {
                         },
                         validStatusCode: 200
                 }
-                ))
+                )
             }
         )
     });
@@ -97,7 +97,7 @@ export function mixerSkip() {
             maybeToken,
             (token: string) => {
                 const filters: Array<number> = [1745844053, 1080229685, 812932015]
-                const startResponse: StateUpdateResponse = post<StateUpdateResponse>(
+                const startResponse: Option<StateUpdateResponse> = post<StateUpdateResponse>(
                     {
                         route: "/api/player/start",
                         payload: queries.getMixerPlayerStartPayload(
@@ -115,17 +115,26 @@ export function mixerSkip() {
                         validStatusCode: 200
                     }
                 )
-                videoId = fromNullable(startResponse.currentVideo?.id)
-                check(
-                    videoId,
-                    {
-                        "VideoId found": (id: Option<string | number>) => {
-                            return pipe(
-                                id,
-                                isSome
-                            );
+
+                pipe(
+                    startResponse,
+                    match(
+                        () => fail("Didnt parse start response"),
+                        (response: StateUpdateResponse) => {
+                            videoId = fromNullable(response.currentVideo?.id)
+                            check(
+                                videoId,
+                                {
+                                    "VideoId found": (id: Option<string | number>) => {
+                                        return pipe(
+                                            id,
+                                            isSome
+                                        );
+                                    }
+                                }
+                            )
                         }
-                    }
+                    )
                 )
             }
         )

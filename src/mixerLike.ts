@@ -3,10 +3,10 @@ import {Config} from "./domain/Config";
 import {
     generateRandomDeviceID, get,
     getPlatformConfig,
-    getRandomMixerFilters, post, postForget,
+    getRandomMixerFilters, post,
     runWithToken
 } from "./util/utilities";
-import {fromNullable, match, none, Option, some} from "fp-ts/Option";
+import {fromNullable, match, none, Option} from "fp-ts/Option";
 import {Token} from "./domain/Auth";
 import {StateUpdateResponse} from "./domain/Player";
 import {pipe} from "fp-ts/function";
@@ -27,7 +27,7 @@ export function mixerLike() {
 
     group("01_Client_Guest_Login", function() {
 
-        maybeToken = some(post<Token>(
+        maybeToken = post<Token>(
             {
                 route: "/iam/oauth2/token",
                 payload: queries.getClientGuestPayload(
@@ -37,7 +37,7 @@ export function mixerLike() {
                 ),
                 validStatusCode: 201
             }
-        ));
+        );
     });
 
     group("02_Get_User_Token_Info", function() {
@@ -53,7 +53,7 @@ export function mixerLike() {
         runWithToken(
             maybeToken,
             (token: string) => {
-                const init: StateUpdateResponse = post<StateUpdateResponse>(
+                const init: Option<StateUpdateResponse> = post<StateUpdateResponse>(
                     {
                         route: "/api/player/init",
                         payload: queries.getInitSessionPayload(
@@ -69,7 +69,16 @@ export function mixerLike() {
                         validStatusCode: 200
                     }
                 )
-                filters = getRandomMixerFilters(init);
+
+                pipe(
+                    init,
+                    match(
+                        () => fail("Didn't receive / Couldn't parse a response from init"),
+                        (response: StateUpdateResponse) => {
+                            filters = getRandomMixerFilters(response)
+                        }
+                    )
+                )
             }
         )
     });
@@ -78,7 +87,7 @@ export function mixerLike() {
         runWithToken(
             maybeToken,
             (token: string) => {
-                const start: StateUpdateResponse = post<StateUpdateResponse>(
+                const start: Option<StateUpdateResponse> = post<StateUpdateResponse>(
                     {
                         route: "/api/player/start",
                         payload: queries.getMixerPlayerStartPayload(
@@ -96,7 +105,16 @@ export function mixerLike() {
                         validStatusCode: 200
                     }
                 )
-                videoId = fromNullable(start.currentVideo?.id);
+
+                pipe(
+                    start,
+                    match(
+                        () => fail("Didn't receive / Couldn't parse a response from start"),
+                        (response: StateUpdateResponse) => {
+                            videoId = fromNullable(response.currentVideo?.id);
+                        }
+                    )
+                )
             }
         )
     });
@@ -110,20 +128,22 @@ export function mixerLike() {
                     match(
                         () => fail("No videoId found to like"),
                         (id: string | number) => {
-                            postForget(
-                                "/api/player/feedback",
-                                queries.getLikeVideoPayload(
-                                    config.apiConfig.ownerKey,
-                                    deviceId,
-                                    appPlatform,
-                                    id,
-                                    appVersion
-                                ),
-                                token,
+                            post<object>(
                                 {
-                                    "content-type": "application/json"
-                                },
-                                200
+                                    route: "/api/player/feedback",
+                                    payload: queries.getLikeVideoPayload(
+                                        config.apiConfig.ownerKey,
+                                        deviceId,
+                                        appPlatform,
+                                        id,
+                                        appVersion
+                                    ),
+                                    token: token,
+                                    headers: {
+                                        "content-type": "application/json"
+                                    },
+                                    validStatusCode: 200
+                                }
                             )
                         }
                     )
