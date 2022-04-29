@@ -1,11 +1,20 @@
 import {Gender, Vendor} from "../domain/Auth";
+import {PlayerType} from "../domain/Player";
 
-export function getClientGuestPayload(clientID: string, clientSecret: string, deviceID: string) {
+export function getClientGuestPayload(clientId: string, clientSecret: string, deviceId: string) {
     return {
         grant_type: "client_credentials",
-        client_id: `${clientID}`,
+        client_id: `${clientId}`,
         client_secret: `${clientSecret}`,
-        device_id: `${deviceID}`,
+        device_id: `${deviceId}`,
+    };
+}
+
+export function adminGrantPayload(clientId: string, clientSecret: string) {
+    return {
+        grant_type: "client_credentials",
+        client_id: `${clientId}`,
+        client_secret: `${clientSecret}`,
     };
 }
 
@@ -16,6 +25,23 @@ export function deviceGrantPayload(clientId: string, clientSecret: string, devic
         client_secret: `${clientSecret}`,
         device_id: `${deviceId}`,
     };
+}
+
+export function webLogin(clientId: string, clientSecret: string, email: string, password: string) {
+    return {
+        grant_type: "password",
+        client_id: `${clientId}`,
+        client_secret: `${clientSecret}`,
+        username: `${email}`,
+        password: `${password}`
+    }
+}
+
+export function refreshTokenPayload(refreshToken: string) {
+    return {
+        grant_type: "refresh_token",
+        refresh_token: refreshToken
+    }
 }
 
 export function getInitSessionPayload(
@@ -158,5 +184,52 @@ export function accountSignUp(
         "captcha": "${captcha}",
         "vendor": "${vendor}"
         
+    }`
+}
+
+export function connectDevicePayload(userCode: string) {
+    return `{
+        "code": "${userCode}"
+    }`
+}
+
+export function upgradeToPremiumPayload() {
+    return `{
+       "role": "premium_registered" 
+    }`
+}
+
+export function playerSearchPayload(
+      appVersion: string
+    , deviceId: string
+    , limit: number
+    , offset: number
+    , ownerKey: string
+    , searchQuery: string) {
+    return `{
+        "appVersion": "${appVersion}",
+        "deviceId": "${deviceId}",
+        "limit": "${limit}",
+        "offset": "${offset}",
+        "ownerKey": "${ownerKey}",
+        "searchQuery": "${searchQuery}"
+    }`
+}
+
+export function playerStartPayload(
+      version: string
+    , deviceId: string
+    , ownerKey: string
+    , platform: string
+    , playerType: PlayerType
+    , videoIndex: number) {
+    return `{
+    "appVersion": "${version}",
+    "deviceId": "${deviceId}",
+    "ownerKey": "${ownerKey}",
+    "platform": "${platform}",
+    "playerType": "${playerType}"",
+    "version": "${version}",
+    "videoIndex": ${videoIndex}
     }`
 }

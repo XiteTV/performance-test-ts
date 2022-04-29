@@ -6,6 +6,14 @@ export interface TokenInfo {
     account: Account
 }
 
+export interface IssuedToken {
+    access_token: string
+    token_type: string
+    expires_in: number
+    refresh_token: string
+    scope: string
+}
+
 export interface AccountResponse {
     account: Account
 }
@@ -52,6 +60,23 @@ export interface AccountInfo {
     referrerName?: string
     platformInfo?: PlatformInfo
     vendor?: object
+}
+
+export interface AccountUpgrade {
+    sub: string
+    email: string
+    role: Role
+    personalInfo?: PersonalInfo
+    platformInfo?: PlatformInfo
+}
+
+export enum Role {
+    FREE_GUEST = "FREE_GUEST",
+    FREE_REGISTERED = "FREE_REGISTERED",
+    PREMIUM_REGISTERED = "PREMIUM_REGISTERED",
+    XIAM_ADMIN = "XIAM_ADMIN",
+    ARTEMIS_ADMIN = "ARTEMIS_ADMIN"
+
 }
 
 export interface PersonalInfo {
