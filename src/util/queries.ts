@@ -1,3 +1,4 @@
+import {Gender, Vendor} from "../domain/Auth";
 
 export function getClientGuestPayload(clientID: string, clientSecret: string, deviceID: string) {
     return {
@@ -5,6 +6,15 @@ export function getClientGuestPayload(clientID: string, clientSecret: string, de
         client_id: `${clientID}`,
         client_secret: `${clientSecret}`,
         device_id: `${deviceID}`,
+    };
+}
+
+export function deviceGrantPayload(clientId: string, clientSecret: string, deviceId: string) {
+    return {
+        grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+        client_id: `${clientId}`,
+        client_secret: `${clientSecret}`,
+        device_id: `${deviceId}`,
     };
 }
 
@@ -117,4 +127,36 @@ export function PMTExitv5(
      "id": "${id}",
      "customSessionTime": 7290
      }`
+}
+
+export function GDPRConsent(accept: boolean) {
+    return`{"accept": ${accept}`
+}
+
+export function deviceGrantAuth(clientId: string, deviceId: string) {
+    return `{ "client_id": "${clientId}", "device_id": "${deviceId}"}`
+}
+
+export function accountSignUp(
+      email: string
+    , password: string
+    , firstname: string
+    , lastname: string
+    , birthdate: string
+    , gender: Gender
+    , countryCode: string
+    , captcha: string
+    , vendor?: Vendor) {
+    return `{
+        "email": "${email}",
+        "password": "${password}",
+        "firstname": "${firstname}",
+        "lastname": "${lastname}",
+        "birthdate": "${birthdate}",
+        "gender": "${gender}",
+        "countrycode": "${countryCode}",
+        "captcha": "${captcha}",
+        "vendor": "${vendor}"
+        
+    }`
 }

@@ -56,9 +56,11 @@ export function channelSkip() {
         runWithToken(maybeToken,
             (token: string) => {
                 get<object>(
-                    "/iam/oauth2/tokeninfo",
-                    token,
-                    200
+                    {
+                        route: "/iam/oauth2/tokeninfo",
+                        token: token,
+                        validStatusCode: 200
+                    }
                 )
             }
         )

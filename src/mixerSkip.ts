@@ -8,7 +8,6 @@ import { pipe } from 'fp-ts/function'
 import {StateUpdateResponse} from "./domain/Player";
 import {Config} from "./domain/Config";
 import {Token, TokenInfo} from "./domain/Auth";
-import {v4} from 'uuid';
 import {getCloseSessionPayload, PMTExitv5} from "./util/queries";
 
 export function mixerSkip() {
@@ -43,7 +42,13 @@ export function mixerSkip() {
         runWithToken(
             maybeToken,
             (token: string) => {
-                return get<TokenInfo>("/iam/oauth2/tokeninfo", token, 200)
+                return get<TokenInfo>(
+                    {
+                        route: "/iam/oauth2/tokeninfo",
+                        token: token,
+                        validStatusCode: 200
+                    }
+                )
             }
         )
     });

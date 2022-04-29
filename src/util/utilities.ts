@@ -212,16 +212,24 @@ export function post<T>(
     );
 }
 
-export function get<T>(route: string, token?: string, validStatusCode?: number): T {
-    const url = `https://${__ENV.BASE_URL}${route}`;
+export function get<T>(
+    args: {
+        route: string,
+        token?: string,
+        headers?: object
+        validStatusCode?: number
+    }
+): Option<T> {
+    const url = `https://${__ENV.BASE_URL}${args.route}`;
 
     const params = pipe(
-        fromNullable(token),
+        fromNullable(args.token),
         match(
             () => {
                 return {
                     headers: {
-                        ...defaultHeaders
+                        ...defaultHeaders,
+                        ...args.headers
                     }
                 }
             },
@@ -230,6 +238,7 @@ export function get<T>(route: string, token?: string, validStatusCode?: number):
                     headers: {
                         ...defaultHeaders,
                         authorization: "Bearer " + t,
+                        ...args.headers
                     }
                 }
             }
@@ -239,12 +248,66 @@ export function get<T>(route: string, token?: string, validStatusCode?: number):
     const response: RefinedResponse<'text'> = http.get(url, params);
 
     pipe(
-        fromNullable(validStatusCode),
+        fromNullable(args.validStatusCode),
         match(
             () => console.log("Not validating status code"),
             (code: number) => checkResponseOk(response, code)
         )
     )
 
-    return JSON.parse(response.body);
+    return fromEither(
+        tryCatch(
+            () => JSON.parse(response.body),
+            (e) => console.error("Failed to parse response body", e)
+        )
+    );
+}
+
+export function put<T>(
+    args: {
+        route: string,
+        payload: string | StructuredRequestBody
+        token?: string,
+        headers?: object,
+        validStatusCode?: number
+    }
+): Option<T> {
+    const params = pipe(
+        fromNullable(args.token),
+        match(
+            () => {
+                return {
+                    headers: {
+                        ...defaultHeaders,
+                        ...args.headers
+                    },
+                }
+            },
+            (t: string) => {
+                return {
+                    headers: {
+                        ...defaultHeaders,
+                        authorization: "Bearer " + t,
+                        ...args.headers
+                    }
+                }
+            }
+        )
+    )
+
+    pipe(
+        fromNullable(args.validStatusCode),
+        match(
+            () => console.log("Not validating status code"),
+            (code: number) => checkResponseOk(response, code)
+        )
+    )
+
+    const response: RefinedResponse<'text'> = http.put(args.route, args.payload, params)
+    return fromEither(
+        tryCatch(
+            () => JSON.parse(response.body),
+            (e) => console.error(`Failed to parse PUT response for ${args.route}`, e)
+        )
+    )
 }

@@ -44,7 +44,12 @@ export function mixerLike() {
         runWithToken(
             maybeToken,
             (token: string) => {
-                get<object>("/iam/oauth2/tokeninfo", token);
+                get<object>(
+                    {
+                        route: "/iam/oauth2/tokeninfo",
+                        token: token
+                    }
+                );
             }
         )
     });
