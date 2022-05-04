@@ -45,7 +45,7 @@ export function getRandomChannel(response: StateUpdateResponse): Option<ChannelD
             return pipe(
                 toOption(arr[category_index]),
                 flatMapOption( (category: ChannelCategory) => {
-                        let max_channel = category.channels.length
+                        let max_channel = category.channels.length - 1;
                         let channel_index = getRandomIntInclusive(0, max_channel);
 
                         return pipe(

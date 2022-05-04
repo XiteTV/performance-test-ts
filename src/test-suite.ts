@@ -2,6 +2,7 @@ import {Options} from "k6/options";
 import {mixerSkip} from "./mixerSkip";
 import {mixerLike} from "./mixerLike";
 import {channelSkip} from "./channelSkip";
+import {search} from "./search";
 // import reportingTest from "./reporting-test";
 
 export let options: Options = {
@@ -24,6 +25,12 @@ export let options: Options = {
             vus: 1,
             duration: "5s"
         },
+        Search: {
+            executor: "constant-vus",
+            exec: "TC_search",
+            vus: 1,
+            duration: "5s"
+        }
         // Reporting: {
         //     executor: "constant-vus",
         //     exec: "TC_reporting",
@@ -43,6 +50,10 @@ export function TC_mixerLike() {
 
 export function TC_channelSkip() {
     channelSkip();
+}
+
+export function TC_search() {
+    search();
 }
 
 // export function TC_reporting() {

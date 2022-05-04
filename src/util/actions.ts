@@ -1,12 +1,15 @@
 import {get, post, put} from "./utilities";
 import {
     AccountInfo,
-    AccountResponse, AccountUpgrade,
+    AccountResponse,
+    AccountUpgrade,
     DeviceCodeIssued,
-    Gender, IssuedToken,
+    Gender,
+    IssuedToken,
     LinkingCodeResponse,
     Token,
-    TokenInfo, Vendor
+    TokenInfo,
+    Vendor
 } from "../domain/Auth";
 import {
     accountSignUp,
@@ -15,6 +18,7 @@ import {
     deviceGrantAuth,
     deviceGrantPayload,
     GDPRConsent,
+    getSkipVideoPayload,
     playerSearchPayload,
     playerStartPayload,
     refreshTokenPayload,
@@ -23,6 +27,7 @@ import {
 } from "./queries";
 import {Option} from "fp-ts/Option";
 import {PlayerType, SearchResponse, StateUpdateResponse} from "../domain/Player";
+import {RefinedResponse} from "k6/http";
 
 export function acceptGDPR(accountId: string, token: Token): Option<AccountInfo> {
     return put<AccountInfo>(
@@ -179,13 +184,13 @@ export function playerSearch(
     , offset: number
     , ownerKey: string
     , searchQuery: string
-    , token: Token)
+    , token: string)
 : Option<SearchResponse> {
     return post<SearchResponse>(
         {
             route: "/api/player/search",
             payload: playerSearchPayload(appVersion, deviceId, limit, offset, ownerKey, searchQuery),
-            token: token.access_token,
+            token: token,
             headers:  {
                 'content-type': "application/json"
             },
@@ -199,19 +204,46 @@ export function playerStartSearch(
     , deviceId: string
     , ownerKey: string
     , platform: string
-    , playerType: PlayerType
     , videoIndex: number
-    , token: Token
+    , token: string
 ): Option<StateUpdateResponse> {
     return post<StateUpdateResponse>(
         {
             route: "/api/player/start",
-            payload: playerStartPayload(version, deviceId, ownerKey, platform, playerType, videoIndex),
-            token: token.access_token,
+            payload: playerStartPayload(version, deviceId, ownerKey, platform, PlayerType.Search, videoIndex),
+            token: token,
             headers:  {
                 'content-type': "application/json"
             },
             validStatusCode: 200
         }
     )
+}
+
+export function appSkip(
+      ownerKey: string
+    , deviceId: string
+    , appPlatform: string
+    , appVersion: string
+    , token: string
+    , prechecks?: Array<(r: RefinedResponse<'text'>) => boolean>): Option<StateUpdateResponse> {
+    return post<StateUpdateResponse>(
+        {
+            route: "/api/player/next",
+            payload: getSkipVideoPayload(
+                ownerKey,
+                deviceId,
+                appPlatform,
+                appVersion,
+                "skip"
+            ),
+            token: token,
+            headers: {
+                "content-type": "application/json"
+            },
+            validStatusCode: 200,
+            prechecks: prechecks
+        }
+    )
+
 }

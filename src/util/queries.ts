@@ -137,22 +137,20 @@ export function PMTExitv5(
     id: string,
     deviceId: string
 ) {
-    return `{
+    return `[{
      "clientPlatform": "${platform}", 
      "clientOwnerKey": "${ownerKey}", 
      "category": "user_action",
-     "clientPlatform": "Ziggo",
      "message": "PMT exit",
-     "partitionDate": "2020-06",
+     "partitionDate": "2022-05",
      "timestamp": ${timestampMillis},
      "clientVersion": "5.3.84",
      "clientDeviceId": "${deviceId}",
      "clientDeviceSoftwareVersion": "unknown",
-     "clientOwnerKey": "ziggo-nl",
      "correlationId": "",
      "id": "${id}",
      "customSessionTime": 7290
-     }`
+     }]`
 }
 
 export function GDPRConsent(accept: boolean) {
@@ -228,7 +226,7 @@ export function playerStartPayload(
     "deviceId": "${deviceId}",
     "ownerKey": "${ownerKey}",
     "platform": "${platform}",
-    "playerType": "${playerType}"",
+    "playerType": "${playerType}",
     "version": "${version}",
     "videoIndex": ${videoIndex}
     }`

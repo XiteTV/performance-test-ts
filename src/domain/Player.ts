@@ -82,7 +82,7 @@ export enum ChannelType {
 export enum PlayerType {
     Channel = "Channel",
     Mixer = "Mixer",
-    Search = "Search",
+    Search = "search",
     Likes = "Likes"
 }
 

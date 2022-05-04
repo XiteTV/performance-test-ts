@@ -10,6 +10,7 @@ import {fromNullable, match, none, Option} from "fp-ts/Option";
 import {Token} from "./domain/Auth";
 import {StateUpdateResponse} from "./domain/Player";
 import {pipe} from "fp-ts/function";
+import {getCloseSessionPayload, PMTExitv5} from "./util/queries";
 const queries = require("./util/queries");
 
 export function mixerLike() {
@@ -152,6 +153,42 @@ export function mixerLike() {
                             )
                         }
                     )
+                )
+            }
+        )
+    });
+
+    group("06_Close_Session", function () {
+        runWithToken(
+            maybeToken,
+            (token: string) => {
+                post<object>(
+                    {
+                        route: "/api/player/close",
+                        payload: getCloseSessionPayload(
+                            config.apiConfig.ownerKey,
+                            deviceId,
+                            config.appConfig.platform,
+                            "5.0.0"
+                        ),
+                        token: token,
+                        headers: {
+                            'content-type': "application/json"
+                        },
+                        validStatusCode: 200
+                    }
+                )
+                const now: number = Date.now()
+                post<object>(
+                    {
+                        route: "/report",
+                        payload: PMTExitv5("xite", config.apiConfig.ownerKey, Date.now(), `${now}-device`, deviceId),
+                        token: token,
+                        headers: {
+                            'content-type': "application/json"
+                        },
+                        validStatusCode: 200
+                    }
                 )
             }
         )

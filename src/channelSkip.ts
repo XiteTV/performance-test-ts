@@ -12,14 +12,14 @@ import {
 } from "./util/utilities";
 import {
     getChannelPlayerStartPayload,
-    getClientGuestPayload,
-    getInitSessionPayload,
-    getSkipVideoPayload
+    getClientGuestPayload, getCloseSessionPayload,
+    getInitSessionPayload, PMTExitv5
 } from "./util/queries"
 import {Token} from "./domain/Auth";
 import {fromNullable, match, none, Option} from "fp-ts/Option";
 import {StateUpdateResponse} from "./domain/Player";
 import {pipe} from "fp-ts/function";
+import {appSkip} from "./util/actions";
 
 export function channelSkip() {
 
@@ -146,28 +146,54 @@ export function channelSkip() {
     });
 
     group("07_Skip_Video", function() {
-        const validateSkip = (res: RefinedResponse<'text'>) => {
-            return validateSkipCheck(res, true)
-        }
         runWithToken(
             maybeToken,
             (token: string) => {
-                post<StateUpdateResponse>(
+                const validateSkip = (res: RefinedResponse<'text'>) => {
+                    return validateSkipCheck(res, true)
+                }
+                appSkip(
+                    config.apiConfig.ownerKey,
+                    deviceId,
+                    appPlatform,
+                    appVersion,
+                    token,
+                    Array.of(validateSkip)
+                )
+            }
+        )
+    });
+
+    group("08_Close_Session", function () {
+        runWithToken(
+            maybeToken,
+            (token: string) => {
+                post<object>(
                     {
-                        route: "/api/player/next",
-                        payload: getSkipVideoPayload(
+                        route: "/api/player/close",
+                        payload: getCloseSessionPayload(
                             config.apiConfig.ownerKey,
                             deviceId,
-                            appPlatform,
-                            appVersion,
-                            "skip"
+                            config.appConfig.platform,
+                            "5.0.0"
                         ),
                         token: token,
                         headers: {
-                            "content-type": "application/json"
+                            'content-type': "application/json"
                         },
-                        validStatusCode: 200,
-                        prechecks: Array.of(validateSkip)
+                        validStatusCode: 200
+                    }
+                )
+                const now: number = Date.now()
+                post<object>(
+                    {
+                        route: "/report",
+                        payload: PMTExitv5("xite", config.apiConfig.ownerKey, Date.now(), `${now}-device`, deviceId),
+                        token: token,
+                        headers: {
+                            'content-type': "application/json"
+                        },
+                        validStatusCode: 200
                     }
                 )
             }
