@@ -188,7 +188,7 @@ export function playerSearch(
 : Option<SearchResponse> {
     return post<SearchResponse>(
         {
-            route: "/api/player/search",
+            route: "/api/player/searchTest",
             payload: playerSearchPayload(appVersion, deviceId, limit, offset, ownerKey, searchQuery),
             token: token,
             headers:  {

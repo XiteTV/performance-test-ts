@@ -1,19 +1,21 @@
-import {group, fail} from "k6";
-import {Config} from "./domain/Config";
-import {
-    generateRandomDeviceID, get,
-    getPlatformConfig,
-    getRandomMixerFilters, post,
-    runWithToken
-} from "./util/utilities";
-import {fromNullable, match, none, Option} from "fp-ts/Option";
-import {Token} from "./domain/Auth";
-import {StateUpdateResponse} from "./domain/Player";
-import {pipe} from "fp-ts/function";
-import {getCloseSessionPayload, PMTExitv5} from "./util/queries";
+import {group, check, fail} from "k6";
+import {RefinedResponse} from "k6/http";
+import {Option, isSome, fromNullable, none, chain, match} from "fp-ts/Option";
+import {ChannelDetails, get, getPlatformConfig, post, runWithToken} from "./util/utilities";
 const queries = require("./util/queries");
+import {generateRandomDeviceID, getRandomChannel, validateSkipCheck} from "./util/utilities";
+import { pipe } from 'fp-ts/function'
+import {StateUpdateResponse} from "./domain/Player";
+import {Config} from "./domain/Config";
+import {Token, TokenInfo} from "./domain/Auth";
+import {getCloseSessionPayload, PMTExitv5} from "./util/queries";
 
-export function mixerLike() {
+export function mixerSkipTest() {
+
+    let maybeToken: Option<Token> = none;
+    let initResponse: Option<StateUpdateResponse> = none
+    let channelDetails: Option<ChannelDetails> = none
+    let videoId: Option<string | number> = none
 
     const config: Config = getPlatformConfig();
     const deviceId: string = generateRandomDeviceID();
@@ -22,12 +24,7 @@ export function mixerLike() {
     const playerType: string = "mixer";
     const clientSecret: string = "hyperion";
 
-    let maybeToken: Option<Token> = none;
-    let filters: Array<number>= [];
-    let videoId: Option<string | number> = none;
-
     group("01_Client_Guest_Login", function() {
-
         maybeToken = post<Token>(
             {
                 route: "/iam/oauth2/token",
@@ -45,12 +42,13 @@ export function mixerLike() {
         runWithToken(
             maybeToken,
             (token: string) => {
-                get<object>(
+                return get<TokenInfo>(
                     {
                         route: "/iam/oauth2/tokeninfo",
-                        token: token
+                        token: token,
+                        validStatusCode: 200
                     }
-                );
+                )
             }
         )
     });
@@ -59,7 +57,7 @@ export function mixerLike() {
         runWithToken(
             maybeToken,
             (token: string) => {
-                const init: Option<StateUpdateResponse> = post<StateUpdateResponse>(
+                initResponse = post<StateUpdateResponse>(
                     {
                         route: "/api/player/init",
                         payload: queries.getInitSessionPayload(
@@ -70,30 +68,43 @@ export function mixerLike() {
                         ),
                         token: token,
                         headers: {
-                            "content-type": "application/json"
+                            'content-type': "application/json"
                         },
                         validStatusCode: 200
-                    }
-                )
-
-                pipe(
-                    init,
-                    match(
-                        () => fail("Didn't receive / Couldn't parse a response from init"),
-                        (response: StateUpdateResponse) => {
-                            filters = getRandomMixerFilters(response)
-                        }
-                    )
+                }
                 )
             }
         )
     });
 
-    group("04_Start_Mixer_Player", function() {
+    group("04_Get_Random_Channel_From_Session", function() {
+        channelDetails = pipe(
+            initResponse,
+            chain( (response: StateUpdateResponse) => {
+                    return getRandomChannel(response);
+                }
+            )
+        )
+
+        check(
+            channelDetails,
+            {
+                "Channel details are returned": (details: Option<ChannelDetails>) => {
+                    return pipe(
+                        details,
+                        isSome
+                    );
+                }
+            }
+        )
+    });
+
+    group("05_Start_Mixer_Player", function() {
         runWithToken(
             maybeToken,
             (token: string) => {
-                const start: Option<StateUpdateResponse> = post<StateUpdateResponse>(
+                const filters: Array<number> = [1745844053, 1080229685, 812932015]
+                const startResponse: Option<StateUpdateResponse> = post<StateUpdateResponse>(
                     {
                         route: "/api/player/start",
                         payload: queries.getMixerPlayerStartPayload(
@@ -106,49 +117,27 @@ export function mixerLike() {
                         ),
                         token: token,
                         headers: {
-                            "content-type": "application/json"
+                            'content-type': "application/json"
                         },
                         validStatusCode: 200
                     }
                 )
 
                 pipe(
-                    start,
+                    startResponse,
                     match(
-                        () => fail("Didn't receive / Couldn't parse a response from start"),
+                        () => fail("Didnt parse start response"),
                         (response: StateUpdateResponse) => {
-                            videoId = fromNullable(response.currentVideo?.id);
-                        }
-                    )
-                )
-            }
-        )
-    });
-
-    group("05_Like_Video", function() {
-        runWithToken(
-            maybeToken,
-            (token: string) => {
-                pipe(
-                    videoId,
-                    match(
-                        () => fail("No videoId found to like"),
-                        (id: string | number) => {
-                            post<object>(
+                            videoId = fromNullable(response.currentVideo?.id)
+                            check(
+                                videoId,
                                 {
-                                    route: "/api/player/feedback",
-                                    payload: queries.getLikeVideoPayload(
-                                        config.apiConfig.ownerKey,
-                                        deviceId,
-                                        appPlatform,
-                                        id,
-                                        appVersion
-                                    ),
-                                    token: token,
-                                    headers: {
-                                        "content-type": "application/json"
-                                    },
-                                    validStatusCode: 200
+                                    "VideoId found": (id: Option<string | number>) => {
+                                        return pipe(
+                                            id,
+                                            isSome
+                                        );
+                                    }
                                 }
                             )
                         }
@@ -158,7 +147,37 @@ export function mixerLike() {
         )
     });
 
-    group("06_Close_Session", function () {
+    group("06_Skip_Video", function() {
+        runWithToken(
+            maybeToken,
+            (token: string) => {
+                const validateSkip = (res: RefinedResponse<'text'>) => {
+                    return validateSkipCheck(res, true);
+                }
+
+                post<StateUpdateResponse>(
+                    {
+                        route: "/api/player/next",
+                        payload: queries.getSkipVideoPayload(
+                            config.apiConfig.ownerKey,
+                            deviceId,
+                            appPlatform,
+                            appVersion,
+                            "skip"
+                        ),
+                        token: token,
+                        headers: {
+                            'content-type': "application/json"
+                        },
+                        validStatusCode: 200,
+                        prechecks: Array.of(validateSkip)
+                    }
+                )
+            }
+        )
+    });
+
+    group("07_Close_Session", function () {
         runWithToken(
             maybeToken,
             (token: string) => {
@@ -192,5 +211,5 @@ export function mixerLike() {
                 )
             }
         )
-    });
+    })
 }

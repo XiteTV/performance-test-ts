@@ -21,7 +21,7 @@ import {StateUpdateResponse} from "./domain/Player";
 import {pipe} from "fp-ts/function";
 import {appSkip} from "./util/actions";
 
-export function channelSkip() {
+export function channelSkipTest() {
 
     const config: Config = getPlatformConfig();
 

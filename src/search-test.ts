@@ -16,7 +16,7 @@ import {SearchResponse, StateUpdateResponse} from "./domain/Player";
 import {pipe} from "fp-ts/function";
 import {RefinedResponse} from "k6/http";
 
-export function search() {
+export function searchTest() {
     let maybeToken: Option<Token> = none;
     let searchResponse: Option<SearchResponse> = none;
     let playerResponse: Option<StateUpdateResponse> = none;

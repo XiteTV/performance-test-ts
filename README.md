@@ -1,26 +1,3 @@
-<div align="center">
-  
-  ![banner](docs/ts-js-k6.png)
-
-# Template to use TypeScript with k6
-
-![.github/workflows/push.yml](https://github.com/k6io/template-typescript/workflows/.github/workflows/push.yml/badge.svg?branch=master)
-
-</div>
-
-This repository provides a scaffolding project to start using TypeScript in your k6 scripts.
-
-## Rationale
-
-While JavaScript is great for a myriad of reasons, one area where it fall short is type safety and developer ergonomics. It's perfectly possible to write JavaScript code that will look OK and behave OK until a certain condition forces the executor into a faulty branch.
-
-While it, of course, still is possible to shoot yourself in the foot with TypeScript as well, it's significantly harder. Without adding much overhead, TypeScript will:
-
-- Improve the ability to safely refactor your code.
-- Improve readability and maintainability.
-- Allow you to drop a lot of the defensive code previously needed to make sure consumers are calling functions properly.
-
-
 ## Prerequisites
 
 - [k6](https://k6.io/docs/getting-started/installation)
@@ -28,13 +5,6 @@ While it, of course, still is possible to shoot yourself in the foot with TypeSc
 - [Yarn](https://yarnpkg.com/getting-started/install) (optional)
 
 ## Installation
-
-**Creating a project from the `template-typescript` template**
-
-To generate a TypeScript project that includes the dependencies and initial configuration, navigate to the [template-typescript](https://github.com/k6io/template-typescript) page and click **Use this template**.
-
-  ![](docs/use-this-template-button.png)
-
 
 **Install dependencies**
 
@@ -52,20 +22,84 @@ To run a test written in TypeScript, we first have to transpile the TypeScript c
 $ yarn webpack
 ```
 
+Also make sure to export the following Environment variables
+- K6_STATSD_ADDR: Is used for our generating our prometheus metrics from the STATSD metrics in the project
+- BASE_URL: The base endpoint for the cluster you are testing
+- CONFIG_URL: The configuration used for running these tests
+
+```bash 
+export K6_STATSD_ADDR="35.241.135.59:9125" 
+export BASE_URL="s.xite.com"
+export CONFIG_URL=configuration-staging.xite.com/comcast/us
+```
+
 This command creates the final test files to the `./dist` folder.
 
 Once that is done, we can run our script the same way we usually do, for instance:
 
 ```bash
-$ k6 run dist/get-200-status-test.js
+$ k6 run --out json=results/out.json --summary-export=results/summary.json --out csv=results/out.csv --out statsd ./dist/test-suite.js
 ```
 
 ## Writing own tests
 
 House rules for writing tests:
 - The test code is located in `src` folder
-- The entry points for the tests need to have "_test_" word in the name to distinguish them from auxiliary files. You can change the entry [here](./webpack.config.js#L8). 
+- New interfaces and frequently used classes is located in `src/domain` folder
+- New utility functions are located in `src/util` folder. Split between actions (common API calls or flows like authenticate user), queries (json payloads) and utilities (for misc. shared logic)
 - If static files are required then add them to `./assets` folder. Its content gets copied to the destination folder (`dist`) along with compiled scripts.
+
+Creating a new test suite:
+For naming convention use kebab-case where possible and suffix the test name with test, for example: `cool-new-feature-test.ts`
+
+most tests will look something like this
+```typescript
+export function coolNewFeatureTest() {
+    // fetch a config to use for scenario
+    const config: Config = getPlatformConfig();
+
+    // groups are units of tests
+    group("01_Do-A-Cool-Thing", function() {
+        // test logic in here
+    })
+
+    group("02_Do-A-Even-Cooler-Thing", function() {
+        // test logic in here
+    })
+}
+```
+
+with a reference in the entrypoint file `src/test-suite.ts`
+```typescript
+    import {coolNewFeatureTest} from "./cool-new-feature-test.ts";
+
+    export let options: Options = {
+        scenarios: {
+            //...
+            SkipMixer: { // Name of your scenario (doesn't need to match filename)
+                executor: "ramping-vus", // type of scenario see https://k6.io/docs/using-k6/scenarios/ for different scenarios you can use
+                exec: "TC_coolNewFeatureTest", // target function
+                startVUs: 1,
+                stages: [
+                    { duration: '20s', target: 5 },
+                    { duration: '20s', target: 10 },
+                    { duration: '10s', target: 15 },
+                    { duration: '10s', target: 5 },
+                ],
+                gracefulRampDown: '10s'
+            }
+        }
+    }
+
+export function TC_coolNewFeatureTest() {
+    coolNewFeatureTest();
+}
+
+export default function main() {
+    //..
+    coolNewFeatureTest();
+}
+```
 
 ### Transpiling and Bundling
 
