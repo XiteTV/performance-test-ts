@@ -5,6 +5,12 @@ import {channelSkipTest} from "./channel-skip-test";
 import {searchTest} from "./search-test";
 // import reportingTest from "./reporting-test";
 
+const standardEnvironment: { [name: string]: string } = {
+    K6_STATSD_ADDR: '35.241.135.59:9125',
+    BASE_URL: 's.xite.com',
+    CONFIG_URL: 'configuration-staging.xite.com/comcast/us'
+}
+
 export let options: Options = {
     scenarios: {
         SkipMixer: {
@@ -17,7 +23,8 @@ export let options: Options = {
                 { duration: '10s', target: 15 },
                 { duration: '10s', target: 5 },
             ],
-            gracefulRampDown: '10s'
+            gracefulRampDown: '10s',
+            env: standardEnvironment
         },
         LikeMixer: {
             executor: "ramping-arrival-rate",
@@ -30,7 +37,8 @@ export let options: Options = {
                 { target: 300, duration: '1m' },
                 { target: 600, duration: '1m' },
                 { target: 800, duration: '1m' }
-            ]
+            ],
+            env: standardEnvironment
         },
         ChannelSkip: {
             executor: "constant-arrival-rate",
@@ -40,13 +48,15 @@ export let options: Options = {
             rate: 30,
             preAllocatedVUs: 2,
             maxVUs: 15,
+            env: standardEnvironment
         },
         Search: {
             executor: 'per-vu-iterations',
             exec: "TC_search",
             vus: 10,
             iterations: 20,
-            maxDuration: '60s'
+            maxDuration: '60s',
+            env: standardEnvironment
         }
         // Reporting: {
         //     executor: "constant-vus",
