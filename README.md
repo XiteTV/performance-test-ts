@@ -22,16 +22,10 @@ To run a test written in TypeScript, we first have to transpile the TypeScript c
 $ yarn webpack
 ```
 
-Also make sure to export the following Environment variables
+Also make sure to set the following Environment variables in `test-suite.ts`
 - K6_STATSD_ADDR: Is used for our generating our prometheus metrics from the STATSD metrics in the project
 - BASE_URL: The base endpoint for the cluster you are testing
 - CONFIG_URL: The configuration used for running these tests
-
-```bash 
-export K6_STATSD_ADDR="35.241.135.59:9125" 
-export BASE_URL="s.xite.com"
-export CONFIG_URL=configuration-staging.xite.com/comcast/us
-```
 
 This command creates the final test files to the `./dist` folder.
 

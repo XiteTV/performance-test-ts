@@ -16,6 +16,13 @@ import {SearchResponse, StateUpdateResponse} from "./domain/Player";
 import {pipe} from "fp-ts/function";
 import {RefinedResponse} from "k6/http";
 
+export const options = {
+    thresholds: {
+        http_req_failed: ['rate<0.01'], // http errors should be less than 1%
+        http_req_duration: ['p(95)<250'], // 95% of requests should be below 200ms
+    },
+};
+
 export function searchTest() {
     let maybeToken: Option<Token> = none;
     let searchResponse: Option<SearchResponse> = none;
