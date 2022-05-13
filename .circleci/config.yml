@@ -20,7 +20,7 @@ jobs:
             cp k6-v0.38.2-linux-amd64/k6 .
             git config --global --add url.'git@github.com:'.insteadOf 'https://github.com/'
             ssh-keyscan github.com >> ~/.ssh/known_hosts
-            echo ${GITHUB_PRIVATE_KEY_ENCODED} | base64 -D > github-key
+            echo ${GITHUB_PRIVATE_KEY_ENCODED} | base64 -d > github-key
             chmod 400 github-key
             ssh-agent bash -c "ssh-add github-key; yarn install"
             yarn webpack
