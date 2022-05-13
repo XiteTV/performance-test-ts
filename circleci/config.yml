@@ -1,0 +1,38 @@
+version: 2
+jobs:
+  loadimpact:
+    docker:
+      - image: loadimpact/k6
+    environment:
+      BASE_URL: s.xite.com
+      CONFIG_URL: configuration-staging.xite.com/comcast/us
+      K6_STATSD_ADDR: '35.241.135.59:9125'
+
+    working_directory: ~/workspace
+    steps:
+      - checkout
+      - run:
+          name: run performance test
+          command: |
+            mkdir -p results
+            wget http://nodejs.org/dist/v17.8.0/node-v17.8.0.tar.gz
+            tar -zxf node-v17.8.0.tar.gz
+            cd node-v17.8.0
+            ./configure
+            make
+            sudo make install
+            cd ..
+            npm install --global yarn
+            yarn install
+            yarn webpack
+            k6 run --out json=results/out.json --summary-export=results/summary.json --out csv=results/out.csv --out statsd ./dist/test-suite.js
+      - store_artifacts:
+          path: results
+          destination: results
+
+workflows:
+  version: 2
+  release-platforms:
+    jobs:
+      - loadimpact:
+          context: PERFORMANCE_TEST
