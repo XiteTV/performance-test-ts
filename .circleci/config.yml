@@ -26,8 +26,7 @@ jobs:
             yarn webpack
             ./k6 run --out json=results/out.json --summary-export=results/summary.json --out csv=results/out.csv --out statsd ./dist/test-suite.js
       - store_artifacts:
-          path: results
-          destination: results
+          path: /root/workspace/results
 
 workflows:
   version: 2
