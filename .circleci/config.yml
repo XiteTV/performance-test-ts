@@ -18,11 +18,10 @@ jobs:
             wget https://github.com/grafana/k6/releases/download/v0.38.2/k6-v0.38.2-linux-amd64.tar.gz
             tar -zxf k6-v0.38.2-linux-amd64.tar.gz
             cp k6-v0.38.2-linux-amd64/k6 .
-            git config --global --add url.'git@github.com:'.insteadOf 'https://github.com/' &&\
-            ssh-keygen -t rsa -f /root/.ssh/id_rsa -q -P "" && \
-            ssh-keyscan github.com >> ~/.ssh/known_hosts &&\
+            git config --global --add url.'git@github.com:'.insteadOf 'https://github.com/'
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
             echo ${GITHUB_PRIVATE_KEY_ENCODED} | base64 -D > github-key
-            chmod 400 github-key &&\
+            chmod 400 github-key
             ssh-agent bash -c "ssh-add github-key; yarn install"
             yarn webpack
             ./k6 run --out json=results/out.json --summary-export=results/summary.json --out csv=results/out.csv --out statsd ./dist/test-suite.js
