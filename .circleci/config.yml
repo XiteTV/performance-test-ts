@@ -2,7 +2,7 @@ version: 2
 jobs:
   loadimpact:
     docker:
-      - image: cimg/node:17.9.0
+      - image: node:17.9.0
     environment:
       BASE_URL: s.xite.com
       CONFIG_URL: configuration-staging.xite.com/comcast/us
