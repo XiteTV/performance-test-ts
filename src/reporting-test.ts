@@ -16,6 +16,7 @@ export function setup() {
     }
 
     const initReportingParams: InitReportingParams = {
+
         appVersion: "5.0.0",
         deviceSoftwareVersion: "0.1",
         deviceId: "device-1",
