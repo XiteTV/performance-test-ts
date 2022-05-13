@@ -18,7 +18,6 @@ jobs:
             wget https://github.com/grafana/k6/releases/download/v0.38.2/k6-v0.38.2-linux-amd64.tar.gz
             tar -zxf k6-v0.38.2-linux-amd64.tar.gz
             cp k6-v0.38.2-linux-amd64/k6 .
-            npm install --global yarn
             yarn install
             yarn webpack
             ./k6 run --out json=results/out.json --summary-export=results/summary.json --out csv=results/out.csv --out statsd ./dist/test-suite.js
