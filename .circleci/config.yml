@@ -7,7 +7,7 @@ jobs:
       BASE_URL: s.xite.com
       CONFIG_URL: configuration-staging.xite.com/comcast/us
       K6_STATSD_ADDR: '35.241.135.59:9125'
-
+      NODE_OPTIONS: "--openssl-legacy-provider"
     working_directory: ~/workspace
     steps:
       - checkout
