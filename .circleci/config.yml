@@ -1,32 +1,73 @@
+var_1: &addgithubkey
+  run:
+    name: Authenticate github key
+    command: |
+       echo $GITHUB_PRIVATE_KEY_ENCODED | base64 -d >> github-key
+       chmod 0400 github-key
+       mkdir -p results
+
 version: 2
 jobs:
   loadimpact:
     docker:
-      - image: node:17.9.0
+      - image: eu.gcr.io/xite-cms/xite-performance-test:latest
+        auth:
+          username: _json_key
+          password: $GCLOUD_SERVICE_ACCOUNT_KEY_FILE
+
     environment:
       BASE_URL: s.xite.com
       CONFIG_URL: configuration-staging.xite.com/comcast/us
       K6_STATSD_ADDR: '35.241.135.59:9125'
-      NODE_OPTIONS: "--openssl-legacy-provider"
     working_directory: ~/workspace
     steps:
       - checkout
+      - *addgithubkey
       - run:
           name: run performance test
           command: |
-            mkdir -p results
-            wget https://github.com/grafana/k6/releases/download/v0.38.2/k6-v0.38.2-linux-amd64.tar.gz
-            tar -zxf k6-v0.38.2-linux-amd64.tar.gz
-            cp k6-v0.38.2-linux-amd64/k6 .
-            git config --global --add url.'git@github.com:'.insteadOf 'https://github.com/'
-            ssh-keyscan github.com >> ~/.ssh/known_hosts
-            echo ${GITHUB_PRIVATE_KEY_ENCODED} | base64 -d > github-key
-            chmod 400 github-key
             ssh-agent bash -c "ssh-add github-key; yarn install"
             yarn webpack
-            ./k6 run --out json=results/out.json --summary-export=results/summary.json --out csv=results/out.csv --out statsd ./dist/test-suite.js
+            k6 run --out json=results/out.json --summary-export=results/summary.json --out csv=results/out.csv --out statsd ./dist/test-suite.js
       - store_artifacts:
-          path: /root/workspace/results
+          path: results
+
+  push-xite-perfomance-test-gcr:
+      docker:
+        - image: eu.gcr.io/xite-cms/xite-gcloud:latest
+          auth:
+            username: _json_key
+            password: $GCLOUD_SERVICE_ACCOUNT_KEY_FILE
+
+      working_directory: ~/workspace
+
+      steps:
+        - setup_remote_docker:
+            version: 20.10.12
+        - checkout
+
+        - attach_workspace:
+            at: ~/workspace
+
+        - run:
+            name: Clone XITE SDK
+            command: |
+              git clone git@github.com:XiteTV/build-and-deploy-scripts.git /tmp/xite-sdk && cp -r /tmp/xite-sdk/* .
+        - run:
+            name: Gcloud Init
+            command: |
+              ./gcloud-init.sh
+        - *addgithubkey
+        - run:
+            name: Build image and push to container registry
+            environment:
+              APP_NAME: xite-perfomance-test
+              BUILDS_MULTIPLE_APPS: "true"
+              DOCKERFILE_PATH: "Dockerfile"
+            command: |
+              cp -r /tmp/xite-sdk/* .
+              ./docker-build-and-gcr-push.sh
+              ./push-git-tag.sh
 
 workflows:
   version: 2
@@ -34,3 +75,7 @@ workflows:
     jobs:
       - loadimpact:
           context: PERFORMANCE_TEST
+      - push-xite-perfomance-test-gcr:
+          context: GCloud
+          requires:
+            - loadimpact
