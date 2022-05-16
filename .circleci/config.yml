@@ -3,6 +3,10 @@ jobs:
   loadimpact:
     docker:
       - image: eu.gcr.io/xite-cms/xite-performance-test
+        auth:
+          username: _json_key
+          password: $GCLOUD_SERVICE_ACCOUNT_KEY_FILE
+
     environment:
       BASE_URL: s.xite.com
       CONFIG_URL: configuration-staging.xite.com/comcast/us
