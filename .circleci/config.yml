@@ -2,7 +2,7 @@ version: 2
 jobs:
   loadimpact:
     docker:
-      - image: eu.gcr.io/xite-cms/xite-performance-test
+      - image: eu.gcr.io/xite-cms/xite-performance-test:latest
         auth:
           username: _json_key
           password: $GCLOUD_SERVICE_ACCOUNT_KEY_FILE
@@ -11,16 +11,18 @@ jobs:
       BASE_URL: s.xite.com
       CONFIG_URL: configuration-staging.xite.com/comcast/us
       K6_STATSD_ADDR: '35.241.135.59:9125'
-      NODE_OPTIONS: "--openssl-legacy-provider"
     working_directory: ~/workspace
     steps:
       - checkout
       - run:
           name: run performance test
           command: |
+            echo $GITHUB_PRIVATE_KEY_ENCODED | base64 -d >> github-key
+            chmod 0400 github-key
             ssh-agent bash -c "ssh-add github-key; yarn install"
             yarn webpack
-            ./k6 run --out json=results/out.json --summary-export=results/summary.json --out csv=results/out.csv --out statsd ./dist/test-suite.js
+            mkdir -p results
+            k6 run --out json=results/out.json --summary-export=results/summary.json --out csv=results/out.csv --out statsd ./dist/test-suite.js
       - store_artifacts:
           path: /root/workspace/results
 
