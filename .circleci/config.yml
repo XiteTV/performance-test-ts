@@ -1,3 +1,11 @@
+var_1: &addgithubkey
+  run:
+    name: Authenticate github key
+    command: |
+       echo $GITHUB_PRIVATE_KEY_ENCODED | base64 -d >> github-key
+       chmod 0400 github-key
+       mkdir -p results
+
 version: 2
 jobs:
   loadimpact:
@@ -14,14 +22,12 @@ jobs:
     working_directory: ~/workspace
     steps:
       - checkout
+      - *addgithubkey
       - run:
           name: run performance test
           command: |
-            echo $GITHUB_PRIVATE_KEY_ENCODED | base64 -d >> github-key
-            chmod 0400 github-key
             ssh-agent bash -c "ssh-add github-key; yarn install"
             yarn webpack
-            mkdir -p results
             k6 run --out json=results/out.json --summary-export=results/summary.json --out csv=results/out.csv --out statsd ./dist/test-suite.js
       - store_artifacts:
           path: results
@@ -51,6 +57,7 @@ jobs:
             name: Gcloud Init
             command: |
               ./gcloud-init.sh
+        - *addgithubkey
         - run:
             name: Build image and push to container registry
             environment:
@@ -58,8 +65,6 @@ jobs:
               BUILDS_MULTIPLE_APPS: "true"
               DOCKERFILE_PATH: "Dockerfile"
             command: |
-              echo $GITHUB_PRIVATE_KEY_ENCODED | base64 -d >> github-key
-              chmod 0400 github-key
               cp -r /tmp/xite-sdk/* .
               ./docker-build-and-gcr-push.sh
               ./push-git-tag.sh
